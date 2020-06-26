@@ -1,0 +1,122 @@
+{# @var craft \craft\web\twig\variables\CraftVariable #}
+{#
+/**
+ * Refeed Me plugin for Craft CMS 3.x
+ *
+ * Refeed Me index.twig
+ *
+ * @author    Kristian S. P.
+ * @copyright Copyright (c) 2020 Kristian S. P.
+ * @link      https://github.com/kristiansp
+ * @package   RefeedMe
+ * @since     0.9.0-dev
+ */
+#}
+
+{% extends "_layouts/cp" %}
+{% import "_includes/forms" as forms %}
+
+{% do view.registerAssetBundle("kristiansp\\refeedme\\assetbundles\\refeedme\\RefeedMeAsset") %}
+{% do view.registerAssetBundle("kristiansp\\refeedme\\assetbundles\\indexcpsection\\IndexCPSectionAsset") %}
+
+{% set docsUrl = "https://github.com/kristiansp/refeed-me/blob/master/README.md" %}
+
+{% set title = "Refeed Me" %}
+
+{% set pluginCpUrl = url('refeed-me') %}
+
+{% set iconUrl = view.getAssetManager().getPublishedUrl('@kristiansp/refeedme/assetbundles/indexcpsection/dist', true) ~ '/img/Index-icon.svg' %}
+
+{% set extraPageHeaderHtml %}
+    <div class="buttons">
+        <a href="{{ pluginCpUrl }}" class="btn submit add icon">{{ "Click Me!"|t('refeed-me') }}</a>
+    </div>
+{% endset %}
+
+{% block actionButton %}
+    <a class="btn submit add icon" href="#" onclick="feedsModal.show();">{{ 'New feed group' | t('feed-me') }}</a>
+{% endblock %}
+
+{% set content %}
+    <div id="nofeedgroups"{% if feedgroups %} class="hidden"{% endif %}>
+        <p>{{ "No feed groups exist yet." | t('feed-me') }}</p>
+    </div>
+
+    {% if feeds is same as(null) %}
+        <div id="nofeeds">
+            <p>{{ "The Feed Me pluing is not installed or not enabled. Refeed Me uses the Feed Me plugin, and will neither function nor make sense without it." | t('feed-me') }}</p>
+        </div>
+
+    {% elseif not feeds %}
+        <div id="nofeeds">
+            <p>{{ "No feeds defined in Feed Me. Configure your feeds in Feed Me and return here." | t('feed-me') }}</p>
+        </div>
+
+    {% endif %}
+
+        <div class="">
+            <form class="modal"  id="feeds-modal" style="display: none; opacity: 0;">
+                {{ csrfInput() }}
+                <div class="header">
+                    <h1>Select feeds to include</h1>
+                </div>
+                <div class="body">
+                    <table id="feeds" class="data fullwidth collapsible">
+                        <thead>
+                            <tr>
+                                <th class="thin"></th>
+                                <th scope="col">Choose feeds</th>
+                                <th class="thin"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for feed in feeds %}
+                                <tr>
+                                    <td>
+                                        {{ forms.checkbox({
+                                            id: 'feed-' ~ feed.id,
+                                            name: feed.id,
+                                        }) }}
+
+                                    </td>
+                                    <th scope="row">
+                                        <a href="{{ url('feed-me/feeds/' ~ feed.id) }}">{{ feed.name | t('feed-me') }}</a>
+                                    </th>
+                                    <td class="thin action">
+                                        <a class="move icon" title="{{ 'Reorder' | t('feed-me') }}" role="button"></a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <footer class="footer" style="position: absolute; bottom: 0; width: 100%;">
+                    <div class="buttons right">
+                        <div class="btn cancel">{{ 'Cancel'|t }}</div>
+                        <input type="submit" class="btn submit" value="{{ 'Save'|t }}">
+                    </div>
+                </footer>
+            </form>
+        </div>
+
+    {% js %}
+        var adminTable = new Craft.AdminTable({
+            tableSelector: '#feeds',
+            noObjectsSelector: '#nofeeds',
+            newObjectBtnSelector: '#newfeedcontainer',
+            sortable: true,
+            reorderAction: 'refeed-me/feedgroups/reorder-feeds',
+            confirmDeleteMessage: '{{ "Are you sure you want to delete “{name}”?" | t('feed-me') }}',
+            reorderSuccessMessage: '{{ "Successfully reordered feeds" | t('feed-me') }}',
+            reorderFailMessage: '{{ "Failed to reorder feeeds" | t('feed-me') }}',
+        });
+
+        var feedsElement = document.getElementById('feeds-modal');
+
+        var feedsModal = new NewFeedGroupModal(feedsElement, {
+            autoShow: false,
+        });
+
+    {% endjs %}
+
+{% endset %}
