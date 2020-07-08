@@ -114,6 +114,7 @@ class FeedgroupsController extends Controller
                  // Let Feed Me run the feed
                  } else {
 
+                     // TODO: Is this used for anything? Must a model be set?
                      $element = $feed->element->setModel($feed);
 
                      FeedMe::$plugin->getInstance()->runAction('feeds/run', ['id' => $id]);

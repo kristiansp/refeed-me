@@ -36,11 +36,11 @@ class IndexCPSectionAsset extends AssetBundle
         ];
 
         $this->js = [
-            'js/Index.js',
+            'js/index.js',
         ];
 
         $this->css = [
-            'css/Index.css',
+            'css/index.css',
         ];
 
         parent::init();

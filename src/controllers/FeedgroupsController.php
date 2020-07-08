@@ -13,7 +13,9 @@ namespace kristiansp\refeedme\controllers;
 use kristiansp\refeedme\RefeedMe;
 use kristiansp\refeedme\models\RefeedModel;
 use kristiansp\refeedme\services\Feedgroups;
+
 use craft\feedme\Plugin as FeedMe;
+use craft\feedme\queue\jobs\FeedImport;
 
 use Craft;
 use craft\web\Controller;
@@ -44,8 +46,23 @@ class FeedgroupsController extends Controller
      */
     public function actionIndex()
     {
-        $variables['feeds'] = class_exists('\craft\feedme\Plugin') ? FeedMe::$plugin->feeds->getFeeds() : null;
-        $variables['feedgroups'] = RefeedMe::$plugin->feedgroups->getFeedGroups();
+        $feedGroups = RefeedMe::$plugin->feedgroups->getFeedGroups();
+
+        $feeds = class_exists('\craft\feedme\Plugin') ? FeedMe::$plugin->feeds->getFeeds() : null;
+
+        if ($feeds) {
+            $feedsById = [];
+
+            foreach ($feeds as $feed) {
+                $feedsById[$feed->id] = $feed;
+            }
+
+            $feeds = $feedsById;
+        }
+
+
+        $variables['feeds'] = $feeds;
+        $variables['feedgroups'] = $feedGroups;
 
         return $this->renderTemplate('refeed-me/feedgroups/index', $variables);
     }
@@ -73,6 +90,50 @@ class FeedgroupsController extends Controller
         return json_encode($return);
 
 //        return $this->renderTemplate('refeed-me/feedgroups/index', $variables);
+    }
+
+    // TODO: Decide whether to run via AJAX, or something similar to "direct" (and "passkey")
+    public function actionRun($feedGroupId = null)
+    {
+
+        // TODO: If we do this via AJAX, maybe make it more like FeedMe
+        $return = 'refeed-me';
+
+        // If Feed Me is not installed and enabled, do nothing
+        if ( !Craft::$app->plugins->isPluginEnabled('feed-me') ) {
+            Craft::$app->getSession()->setNotice(Craft::t('refeed-me', 'Feed Me plugin must be installed and enabled.'));
+            return $this->redirect($return);
+
+        // If no feedGroup ID is passed in, there's not much we can do
+        } elseif(!$feedGroupId) {
+            Craft::$app->getSession()->setNotice(Craft::t('refeed-me', 'No feed group selected.'));
+            return $this->redirect($return);
+
+        // Ok, here we go
+        } else {
+
+            // Get our feed group from the DB
+            $feedGroup = RefeedMe::$plugin->feedgroups->getFeedGroupById($feedGroupId);
+
+            // Run all the feeds
+            foreach ($feedGroup->feeds as $feedId) {
+
+                $feed = FeedMe::$plugin->feeds->getFeedById($feedId);
+
+                // TODO: Create an event to be able to shield entries here?
+                $processedElementIds = [];
+
+                Craft::$app->getSession()->setNotice(Craft::t('refeed-me', 'Running group ' . $feedGroup->name . '.'));
+
+                Craft::$app->getQueue()->delay(0)->push(new FeedImport([
+                    'feed' => $feed,
+                    'processedElementIds' => $processedElementIds,
+                ]));
+            }
+
+            return $this->redirect('refeed-me');
+        }
+
     }
 
     public function actionReorderFeeds()

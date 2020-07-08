@@ -157,7 +157,7 @@ class RefeedMe extends Plugin
                 $event->rules = array_merge($event->rules, [
                     'refeed-me/feedgroups' => 'refeed-me/feedgroups/index',
                     'refeed-me/feedgroups/save' => 'refeed-me/feedgroups/save',
-                    'refeed-me/feedgroups/test/<feedId:\d+>' => 'refeed-me/feedgroups/save',
+                    'refeed-me/feedgroups/run/<feedGroupId:\d+>' => 'refeed-me/feedgroups/run',
                     'refeed-me/feedgroups/reorder-feeds' => 'refeed-me/feedgroups/reorder-feeds',
                 ]);
             }
