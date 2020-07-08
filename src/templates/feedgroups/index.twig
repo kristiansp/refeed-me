@@ -20,84 +20,168 @@
 {% do view.registerAssetBundle("kristiansp\\refeedme\\assetbundles\\indexcpsection\\IndexCPSectionAsset") %}
 
 {% set docsUrl = "https://github.com/kristiansp/refeed-me/blob/master/README.md" %}
-
 {% set title = "Refeed Me" %}
-
 {% set pluginCpUrl = url('refeed-me') %}
-
 {% set iconUrl = view.getAssetManager().getPublishedUrl('@kristiansp/refeedme/assetbundles/indexcpsection/dist', true) ~ '/img/Index-icon.svg' %}
 
-{% set extraPageHeaderHtml %}
-    <div class="buttons">
-        <a href="{{ pluginCpUrl }}" class="btn submit add icon">{{ "Click Me!"|t('refeed-me') }}</a>
-    </div>
-{% endset %}
-
 {% block actionButton %}
-    <a class="btn submit add icon" href="#" onclick="feedsModal.show();">{{ 'New feed group' | t('feed-me') }}</a>
+    <a class="btn submit add icon" id="add-feedgroup-btn" href="#">{{ 'New feed group' | t('refeed-me') }}</a>
 {% endblock %}
 
 {% set content %}
-    <div id="nofeedgroups"{% if feedgroups %} class="hidden"{% endif %}>
-        <p>{{ "No feed groups exist yet." | t('feed-me') }}</p>
-    </div>
 
+    {# If FeedMe plugin is not available #}
     {% if feeds is same as(null) %}
         <div id="nofeeds">
-            <p>{{ "The Feed Me pluing is not installed or not enabled. Refeed Me uses the Feed Me plugin, and will neither function nor make sense without it." | t('feed-me') }}</p>
+            <p>{{ "The Feed Me pluing is not installed or not enabled. Refeed Me uses the Feed Me plugin, and will neither function nor make sense without it." | t('refeed-me') }}</p>
         </div>
 
+    {# If no feeds are defined in FeedMe we have nothing to group #}
     {% elseif not feeds %}
         <div id="nofeeds">
-            <p>{{ "No feeds defined in Feed Me. Configure your feeds in Feed Me and return here." | t('feed-me') }}</p>
+            <p>{{ "No feeds defined in Feed Me. Configure your feeds in Feed Me and return here." | t('refeed-me') }}</p>
         </div>
+
+    {# Ok, let's get to it #}
+    {% else%}
+
+        {# Except handling if there are no feed groups yet #}
+        <div id="nofeedgroups"{% if feedgroups %} class="hidden"{% endif %}>
+            <p>{{ "No feed groups exist yet." | t('refeed-me') }}</p>
+        </div>
+
+        {% if feedgroups | length %}
+            <table id="feedgroups" class="data fullwidth collapsible table-feed-me">
+                <thead>
+                    <th scope="col">{{ "Name" | t('refeed-me') }}</th>
+                    <th scope="col">{{ "Feeds to run" | t('refeed-me') }}</th>
+                    <th scope="col">{{ "Process" | t('refeed-me') }}</th>
+                    <th class="thin" colspan="3"></th>
+                </thead>
+                <tbody>
+                    {% for feedgroup in feedgroups %}
+                        <tr class="feedgroup" data-id="{{ feedgroup.id }}" data-name="{{ feedgroup.name | t('refeed-me') }}" data-feeds="[{{feedgroup.feeds|join(',')}}]">
+                            <th scope="row" data-title="Name">
+                                {# TODO: #}
+                                <a href="{{ url('feed-me/feeds/' ~ feedgroup.id) }}">{{ feedgroup.name | t('refeed-me') }}</a>
+                                {#
+                                <span class="index-url">
+                                    {% if feed.feedUrl | length > 40 %}
+                                        {{ feed.feedUrl | slice(0, 40) }}&hellip;
+                                    {% else %}
+                                        {{ feed.feedUrl }}
+                                    {% endif %}
+                                </span>
+                                #}
+                            </th>
+
+                            <td>
+                                {% for feedGroupFeed in feedgroup.feeds %}
+                                    {{ feeds[feedGroupFeed].name -}} {{ (not loop.last) ? ' &#8594;' : '' }}
+                                {% endfor %}
+                            </td>
+
+                            <td><a href="{{ url('refeed-me/feedgroups/run/' ~ feedgroup.id) }}">{{ 'Run Feedgroup' | t('refeed-me') }}</a></td>
+
+                            <td class="thin action">
+                                <a class="settings icon" title="{{ 'Settings' | t('refeed-me') }}" role="button"></a>
+                            </td>
+
+                            <td class="thin action">
+                                <a class="move icon" title="{{ 'Reorder' | t('refeed-me') }}" role="button"></a>
+                            </td>
+
+                            <td class="thin action">
+                                <a class="delete icon" title="{{ 'Delete' | t('refeed-me') }}" role="button"></a>
+                            </td>
+                        </tr>
+
+                        <tr data-settings-id="{{ feedgroup.id }}-settings">
+                            <td colspan="9" class="settings-pane" style="display:none;">
+                                <div class="settings-pane-wrap">
+                                    <div class="btn-group" role="group">
+                                        {# TODO: Check if equivialent makes sense #}
+                                        {% if craft.app.config.general.devMode %}
+                                            {% set debugUrl = actionUrl('feed-me/feeds/debug', { feedGroupId: feedgroup.id }) %}
+
+                                            <a class="btn" href="{{ debugUrl }}" target="_blank" role="button">
+                                                <i class="fa fa-bug"></i>
+                                                <span class="btn-text">{{ 'Debug' | t('refeed-me') }}</span>
+                                            </a>
+                                        {% endif %}
+
+                                        {# TODO: Check if equivialent makes sense #}
+                                        <a class="btn" href="{{ url('feed-me/feeds/status/' ~ feedgroup.id) }}" role="button">
+                                            <i class="fa fa-info-circle"></i>
+                                            <span class="btn-text">{{ 'Feed Status' | t('refeed-me') }}</span>
+                                        </a>
+
+                                        {# TODO: Check if equivialent makes sense #}
+                                        <a class="btn" href="{{ actionUrl('feed-me/feeds/save-and-duplicate-feed', { 'feedId': feedgroup.id }) }}" role="button">
+                                            <i class="fa fa-clone"></i>
+                                            <span class="btn-text">{{ 'Duplicate Feed' | t('refeed-me') }}</span>
+                                        </a>
+                                    </div>
+
+                                    {% set cpTrigger = craft.app.config.general.cpTrigger ~ '/' %}
+
+                                    {# TODO: Equivialent _definitely_ makes sense #}
+                                    {#
+                                    {% set directUrl = actionUrl('refeed-me/feeds/run-task', { direct: true, feedgroupId: feedgroup.id, passkey: feed.passkey }) | replace(cpTrigger, '') %}
+                                    #}
+                                    {% set directUrl = 'https://here-comes-the-url-to-use/that-also-must-take-passkeys-into-account/although-not-here' %}
+
+                                    {{ forms.textField({
+                                        label: 'Direct Feed URL' | t('refeed-me'),
+                                        instructions: 'Copy and paste this URL for direct-access to processing this feed. Commonly used when triggering via a Cron Job.' | t('refeed-me'),
+                                        readonly: true,
+                                        value: directUrl,
+                                    }) }}
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+
+        <template id="feedgroup-modal">
+            <div class="header">
+                <h1>Select feeds to include</h1>
+            </div>
+            <div class="body">
+                <table class="data fullwidth collapsible">
+                    <thead>
+                        <tr>
+                            <th class="thin"></th>
+                            <th scope="col">Choose feeds</th>
+                            <th class="thin"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for feed in feeds %}
+                            <tr>
+                                <td class="checkbox" data-feedid="{{feed.id}}"></td>
+                                <th scope="row">
+                                    <a href="{{ url('feed-me/feeds/' ~ feed.id) }}">{{ feed.name | t('refeed-me') }}</a>
+                                </th>
+                                <td class="thin action">
+                                    <a class="move icon" title="{{ 'Reorder' | t('refeed-me') }}" role="button"></a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <footer class="footer" style="position: absolute; bottom: 0; width: 100%;">
+                <div class="buttons right">
+                    <div class="btn cancel">{{ 'Cancel'|t }}</div>
+                    <input type="submit" class="btn submit" value="{{ 'Save'|t }}">
+                </div>
+            </footer>
+        </template>
 
     {% endif %}
-
-        <div class="">
-            <form class="modal"  id="feeds-modal" style="display: none; opacity: 0;">
-                {{ csrfInput() }}
-                <div class="header">
-                    <h1>Select feeds to include</h1>
-                </div>
-                <div class="body">
-                    <table id="feeds" class="data fullwidth collapsible">
-                        <thead>
-                            <tr>
-                                <th class="thin"></th>
-                                <th scope="col">Choose feeds</th>
-                                <th class="thin"></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for feed in feeds %}
-                                <tr>
-                                    <td>
-                                        {{ forms.checkbox({
-                                            id: 'feed-' ~ feed.id,
-                                            name: feed.id,
-                                        }) }}
-
-                                    </td>
-                                    <th scope="row">
-                                        <a href="{{ url('feed-me/feeds/' ~ feed.id) }}">{{ feed.name | t('feed-me') }}</a>
-                                    </th>
-                                    <td class="thin action">
-                                        <a class="move icon" title="{{ 'Reorder' | t('feed-me') }}" role="button"></a>
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                <footer class="footer" style="position: absolute; bottom: 0; width: 100%;">
-                    <div class="buttons right">
-                        <div class="btn cancel">{{ 'Cancel'|t }}</div>
-                        <input type="submit" class="btn submit" value="{{ 'Save'|t }}">
-                    </div>
-                </footer>
-            </form>
-        </div>
 
     {% js %}
         var adminTable = new Craft.AdminTable({
@@ -106,17 +190,17 @@
             newObjectBtnSelector: '#newfeedcontainer',
             sortable: true,
             reorderAction: 'refeed-me/feedgroups/reorder-feeds',
-            confirmDeleteMessage: '{{ "Are you sure you want to delete “{name}”?" | t('feed-me') }}',
-            reorderSuccessMessage: '{{ "Successfully reordered feeds" | t('feed-me') }}',
-            reorderFailMessage: '{{ "Failed to reorder feeeds" | t('feed-me') }}',
+            confirmDeleteMessage: '{{ "Are you sure you want to delete “{name}”?" | t('refeed-me') }}',
+            reorderSuccessMessage: '{{ "Successfully reordered feeds" | t('refeed-me') }}',
+            reorderFailMessage: '{{ "Failed to reorder feeeds" | t('refeed-me') }}',
         });
 
         var feedsElement = document.getElementById('feeds-modal');
-
-        var feedsModal = new NewFeedGroupModal(feedsElement, {
+/*
+        var feedsModal = new FeedGroupModal(feedsElement, {
             autoShow: false,
         });
-
+*/
     {% endjs %}
 
 {% endset %}

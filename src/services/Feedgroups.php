@@ -51,6 +51,16 @@ class Feedgroups extends Component
         return $results;
     }
 
+    public function getFeedGroupById($id)
+    {
+        $query = $this->_getQuery();
+        $query->where(['id' => $id]);
+
+        $result = $query->one();
+
+        return $this->_createModelFromRecord($result);
+    }
+
     public function saveFeedgroup(RefeedModel $model, bool $runValidation = true): bool
     {
         $isNewModel = !$model->id;
@@ -131,10 +141,10 @@ class Feedgroups extends Component
             $feedRecord = RefeedRecord::findOne(['id' => $feedGroupId]);
 
             if (!$feedRecord) {
-                throw new Exception(Craft::t('feed-me', 'No feed exists with the ID “{id}”.', ['id' => $feedGroupId]));
+                throw new Exception(Craft::t('refeed-me', 'No feed exists with the ID “{id}”.', ['id' => $feedGroupId]));
             }
         } else {
-            $feedRecord = new FeedRecord();
+            $feedRecord = new RefeedRecord();
         }
 
         return $feedRecord;

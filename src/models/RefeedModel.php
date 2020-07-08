@@ -51,7 +51,6 @@ class RefeedModel extends Model
             ['caching', 'boolean'],
             ['caching', 'default', 'value' => true],
             ['feeds', 'each', 'rule' => ['integer']],
-            ['fieldMapping', 'string'],
         ];
     }
 }
