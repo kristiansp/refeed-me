@@ -112,6 +112,15 @@ class FeedgroupsController extends Controller
         // Ok, here we go
         } else {
 
+            // NB! This is cinema specific, so doesn't belong here for generic version
+            // (If we are keeping this plugin, I guess an event would be the thing)
+            $entriesToShield = $this->_getEntriesToShield();
+            $feeds = [
+                8 => 'events',
+                2 => 'shows',
+                4 => 'movies',
+            ];
+
             // Get our feed group from the DB
             $feedGroup = RefeedMe::$plugin->feedgroups->getFeedGroupById($feedGroupId);
 
@@ -121,7 +130,9 @@ class FeedgroupsController extends Controller
                 $feed = FeedMe::$plugin->feeds->getFeedById($feedId);
 
                 // TODO: Create an event to be able to shield entries here?
-                $processedElementIds = [];
+                // $processedElementIds = [];
+                $type = $feeds[$feedId];
+                $processedElementIds = $entriesToShield[$type];
 
                 Craft::$app->getSession()->setNotice(Craft::t('refeed-me', 'Running group ' . $feedGroup->name . '.'));
 
@@ -142,6 +153,56 @@ class FeedgroupsController extends Controller
         $return['msg'] = 'Reordered feeds successfully.';
 
         return json_encode($return);
+    }
+
+    private function _getEntriesToShield()
+    {
+        // Make sure the timezone is correct
+        date_default_timezone_set('Europe/Berlin');
+
+        // Start: Midnight last thursday
+        // TODO: Consider doing the "mod" trick not to keep them one week back (but who cares)
+        $startTime = date('Y-m-d H:i:s', strtotime('last thursday'));
+        // End: Current time (now)
+        $endTime = date('Y-m-d H:i:s');
+
+        // Find shows we want to keep, to add them to the "feed"
+        $showIds = Entry::find()
+                 ->section('shows')
+                 ->type('show')
+                 ->where(['> ', 'content.field_showTime', $startTime])
+                 ->andWhere(['< ', 'content.field_showTime', $endTime])
+                 ->status(null)
+                 ->limit(null)
+                 ->ids();
+
+        // Find movies we want to keep
+        $movieIds = Entry::find()
+                  ->section('movies')
+                  ->type('movie')
+                  ->relatedTo([
+                      'targetElement' => $showIds,
+                  ])
+                  ->status(null)
+                  ->limit(null)
+                  ->ids();
+
+        // Find events we want to keep
+        $eventIds = Tag::find()
+                  ->group('eventIDs')
+                  ->relatedTo([
+                      'sourceElement' => $movieIds,
+                  ])
+                  ->limit(null)
+                  ->ids();
+
+        $return = [
+            'shows' => $showIds,
+            'movies' => $movieIds,
+            'events' => $eventIds,
+        ];
+
+        return $return;
     }
 
 }
